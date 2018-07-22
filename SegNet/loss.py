@@ -25,10 +25,13 @@ class SoftmaxWeightedLoss(nn.Module):
         if cuda:
             self.weights = self.weights.cuda()
 
+        self.LossLayer = nn.CrossEntropyLoss(weight = self.weights)
+
     def forward(self, logits, labels):
-        softmax = F.log_softmax(logits, dim=1).permute(0, 2, 3, 1).contiguous().view(-1, 11)
+        #  softmax = F.log_softmax(logits, dim=1).permute(0, 2, 3, 1).contiguous().view(-1, 11)
         #  return softmax
-        return F.cross_entropy(softmax, labels, weight = self.weights)
+        #  return F.cross_entropy(softmax, labels, weight = self.weights)
+        return self.LossLayer(logits, labels)
 
 
 
