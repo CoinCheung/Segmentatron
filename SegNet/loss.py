@@ -44,8 +44,8 @@ if __name__ == "__main__":
     device = torch.device("cpu")
     out = out.to(device)
 
-    in_tensor = torch.tensor(np.ones((4, 11, 1024, 1024))).cuda()
+    in_tensor = torch.tensor(np.ones((4, 11, 1024, 1024))).float().cuda()
     out = LossOp(in_tensor, label).to(device)
     print(out.shape)
-    print(out[1,:])
+    print(out)
 
