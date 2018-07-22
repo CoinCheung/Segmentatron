@@ -1,0 +1,10 @@
+{
+"optimizer": 
+    {
+    "base_lr": 0.1,
+    "momentum": 0.9,
+    "max_iter": 10000,
+    "weight_decay": 0.0005,
+    "datasets": "CamVid/"
+    }
+}
