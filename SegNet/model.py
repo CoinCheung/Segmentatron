@@ -11,13 +11,11 @@ import torch.nn as nn
 # 3. pool是same 还是valid --- 就是 2, 2
 # 4. 训练时不同层的lr_mut不同
 # 5. upsample时候的scale是2，要加吗
+# 6. 是否使用了data aug
 
 class SegNet(nn.Module):
     def __init__(self):
         super(SegNet, self).__init__()
-        self.encoder = []
-        self.decoder = []
-
         self.conv1 = self.ConvBNReLU(3, 64, 7, 1, 3)
         self.pool1 = nn.MaxPool2d(2, 2, return_indices=True)
 
@@ -44,8 +42,27 @@ class SegNet(nn.Module):
 
         self.classifier = nn.Conv2d(64, 11, 1, 1)
 
-    def forward(self):
-        pass
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.pool1(x)
+        x = self.conv2(x)
+        x = self.pool2(x)
+        x = self.conv3(x)
+        x = self.pool3(x)
+        x = self.conv4(x)
+        x = self.pool4(x)
+        x = self.upsample4(x)
+        x = self.deconv4(x)
+        x = self.upsample3(x)
+        x = self.deconv3(x)
+        x = self.upsample2(x)
+        x = self.deconv2(x)
+        x = self.upsample1(x)
+        x = self.deconv1(x)
+        x = self.classifier(x)
+        return x
+
 
     def ConvBNReLU(self, in_channel, out_channel, kernel, stride, pad):
         return nn.Sequential(
@@ -53,6 +70,7 @@ class SegNet(nn.Module):
                 nn.BatchNorm2d(out_channel),
                 nn.ReLU()
                 )
+
 
     def ConvBN(self, in_channel, out_channel, kernel, stride, pad):
         return nn.Sequential(
