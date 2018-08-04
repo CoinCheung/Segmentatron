@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 
 # TODO:
+# 0. 各层尤其是conv层怎么初始化的。
 # 1. BN 是怎么初始化的
 # 2. 数据是否需要预处理
 # 3. pool是same 还是valid --- 就是 2, 2
@@ -40,25 +41,30 @@ class SegNet(nn.Module):
         self.upsample1 = nn.MaxUnpool2d(2, 2)
         self.deconv1 = self.ConvBN(64, 64, 7, 1, 3)
 
-        self.classifier = nn.Conv2d(64, 11, 1, 1)
+        self.classifier = nn.Conv2d(64, 12, 1, 1)
 
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.pool1(x)
+        size1 = x.size()
+        x, idx1 = self.pool1(x)
         x = self.conv2(x)
-        x = self.pool2(x)
+        size2 = x.size()
+        x, idx2 = self.pool2(x)
         x = self.conv3(x)
-        x = self.pool3(x)
+        size3 = x.size()
+        x, idx3 = self.pool3(x)
         x = self.conv4(x)
-        x = self.pool4(x)
-        x = self.upsample4(x)
+        size4 = x.size()
+        x, idx4 = self.pool4(x)
+
+        x = self.upsample4(x, idx4, output_size = size4)
         x = self.deconv4(x)
-        x = self.upsample3(x)
+        x = self.upsample3(x, idx3, output_size = size3)
         x = self.deconv3(x)
-        x = self.upsample2(x)
+        x = self.upsample2(x, idx2, output_size = size2)
         x = self.deconv2(x)
-        x = self.upsample1(x)
+        x = self.upsample1(x, idx1, output_size = size1)
         x = self.deconv1(x)
         x = self.classifier(x)
         return x
@@ -78,4 +84,17 @@ class SegNet(nn.Module):
                 nn.BatchNorm2d(out_channel)
                 )
 
+
+if __name__ == "__main__":
+    segnet = SegNet().cuda()
+    segnet.float()
+    import numpy as np
+    in_array = np.random.randn(4, 3, 360, 480)
+    in_tensor = torch.as_tensor(in_array, dtype=torch.float32).cuda()
+    in_tensor.float()
+    print(type(in_tensor))
+    print(in_tensor.dtype)
+    segnet.train()
+    out_tensor = segnet(in_tensor)
+    print(out_tensor.data)
 

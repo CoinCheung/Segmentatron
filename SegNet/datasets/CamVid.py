@@ -43,7 +43,8 @@ class CamVid(Dataset):
     def __getitem__(self, idx):
         img = cv2.imread(self.imgs[idx])
         img = img.transpose(2, 0, 1)
-        label = cv2.imread(self.labels[idx])
+        label = cv2.imread(self.labels[idx])[..., 0]
+        #  label = label.transpose(2, 0, 1)
         return img, label
 
 
