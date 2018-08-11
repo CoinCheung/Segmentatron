@@ -6,7 +6,6 @@
     "lr_policy": "step",
     "gamma": 0.9,
     "stepsize": 10000000,
-    "max_iter": 10000,
     "weight_decay": 0.0005
     },
 "train": 
@@ -16,5 +15,14 @@
     "batch_size": 4,
     "snapshot": 10000,
     "out_path": "./train" 
+    },
+"test": 
+    {
+    "skip_test": false
+    },
+"val": 
+    {
+    "datasets": "CamVid",
+    "batch_size": 32
     }
 }

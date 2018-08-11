@@ -2,3 +2,7 @@
 /train/
 *pyc
 /datasets/CamVid/see.py
+/datasets/CamVid/deal_txt.py
+try.py
+*pkl
+*pytorch
