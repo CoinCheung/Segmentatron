@@ -16,11 +16,13 @@ import logging
 import pickle
 import numpy as np
 
+# TODO
+# 1. read me
 
 
-def train():
+def train(cfg_file):
     ## config
-    cfg = load_cfg('./SegNet.json')
+    cfg = load_cfg(cfg_file)
 
     ## logging
     FORMAT = '%(levelname)s %(filename)s: %(message)s'
@@ -110,7 +112,12 @@ def train():
         if it % cfg.train.valid_iter == 0:
             valid_loss, acc_clss, acc_all = val_one_epoch(segnet, Loss, valloader)
             result.val_loss.append(valid_loss)
-            logger.info('validation loss: {}\n accuracy per class: {} \n accuracy all: {}'.format(valid_loss, acc_clss, acc_all))
+            print('=======================================')
+            logger.info('validation')
+            print('accuracy per class:\n {}'.format(acc_clss.reshape(-1, 1)))
+            print('accuracy all: {}'.format(acc_all))
+            print('loss: {}'.format(valid_loss))
+            print('=======================================')
         if it % cfg.train.snapshot_iter == 0:
             save_model_name = os.path.join(save_path, ''.join(['model_iter_', str(it), '.pytorch']))
             save_optim_name = save_model_name.replace('model', 'optim')
