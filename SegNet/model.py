@@ -6,42 +6,44 @@ import torch
 import torch.nn as nn
 
 # TODO:
-# 0. 各层尤其是conv层怎么初始化的。
+# 0. 各层尤其是conv层怎么初始化的。 -- conv初始化了，BN 好像没法初始化
 # 1. BN 是怎么初始化的
-# 2. 数据是否需要预处理
+# 2. 数据是否需要预处理 -- 没有，只有一个LRN，但是没什么用
 # 3. pool是same 还是valid --- 就是 2, 2
 # 4. 训练时不同层的lr_mut不同
-# 5. upsample时候的scale是2，要加吗
-# 6. 是否使用了data aug
+# 5. upsample时候的scale是2，要加吗 -- done，maxunpool已经指明了
+# 6. 是否使用了data aug -- 没有，有LRN，但是没用。
 
 class SegNet(nn.Module):
-    def __init__(self):
-        super(SegNet, self).__init__()
-        self.conv1 = self.ConvBNReLU(3, 64, 7, 1, 3)
+    def __init__(self, *args, **kwargs):
+        super(SegNet, self).__init__(*args, **kwargs)
+        self.conv1 = ConvBNReLU(3, 64, 7, 1, 3)
         self.pool1 = nn.MaxPool2d(2, 2, return_indices=True)
 
-        self.conv2 = self.ConvBNReLU(64, 64, 7, 1, 3)
+        self.conv2 = ConvBNReLU(64, 64, 7, 1, 3)
         self.pool2 = nn.MaxPool2d(2, 2, return_indices=True)
 
-        self.conv3 = self.ConvBNReLU(64, 64, 7, 1, 3)
+        self.conv3 = ConvBNReLU(64, 64, 7, 1, 3)
         self.pool3 = nn.MaxPool2d(2, 2, return_indices=True)
 
-        self.conv4 = self.ConvBNReLU(64, 64, 7, 1, 3)
+        self.conv4 = ConvBNReLU(64, 64, 7, 1, 3)
         self.pool4 = nn.MaxPool2d(2, 2, return_indices=True)
 
         self.upsample4 = nn.MaxUnpool2d(2, 2)
-        self.deconv4 = self.ConvBN(64, 64, 7, 1, 3)
+        self.deconv4 = ConvBN(64, 64, 7, 1, 3)
 
         self.upsample3 = nn.MaxUnpool2d(2, 2)
-        self.deconv3 = self.ConvBN(64, 64, 7, 1, 3)
+        self.deconv3 = ConvBN(64, 64, 7, 1, 3)
 
         self.upsample2 = nn.MaxUnpool2d(2, 2)
-        self.deconv2 = self.ConvBN(64, 64, 7, 1, 3)
+        self.deconv2 = ConvBN(64, 64, 7, 1, 3)
 
         self.upsample1 = nn.MaxUnpool2d(2, 2)
-        self.deconv1 = self.ConvBN(64, 64, 7, 1, 3)
+        self.deconv1 = ConvBN(64, 64, 7, 1, 3)
 
         self.classifier = nn.Conv2d(64, 12, 1, 1)
+
+        self.init_params()
 
 
     def forward(self, x):
@@ -69,20 +71,42 @@ class SegNet(nn.Module):
         x = self.classifier(x)
         return x
 
+    def init_params(self):
+        for name, param in self.named_parameters():
+            if 'conv' in name.split('.')[1:]:
+                if 'weight' in name:
+                    nn.init.kaiming_normal_(param, 'fan_out', nonlinearity = 'relu')
+                elif 'bias' in name:
+                    nn.init.constant_(param, 0)
 
-    def ConvBNReLU(self, in_channel, out_channel, kernel, stride, pad):
-        return nn.Sequential(
-                nn.Conv2d(in_channel, out_channel, kernel, stride, pad),
-                nn.BatchNorm2d(out_channel),
-                nn.ReLU()
-                )
 
 
-    def ConvBN(self, in_channel, out_channel, kernel, stride, pad):
-        return nn.Sequential(
-                nn.Conv2d(in_channel, out_channel, kernel, stride, pad),
-                nn.BatchNorm2d(out_channel)
-                )
+class ConvBNReLU(nn.Module):
+    def __init__(self, in_channel, out_channel, kernel, stride, pad,
+            *args, **kwargs):
+        super(ConvBNReLU, self).__init__(*args, **kwargs)
+        self.conv = nn.Conv2d(in_channel, out_channel, kernel, stride, pad)
+        self.bn = nn.BatchNorm2d(out_channel)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.bn(x)
+        x = self.relu(x)
+        return x
+
+
+class ConvBN(nn.Module):
+    def __init__(self, in_channel, out_channel, kernel, stride, pad,
+            *args, **kwargs):
+        super(ConvBN, self).__init__(*args, **kwargs)
+        self.conv = nn.Conv2d(in_channel, out_channel, kernel, stride, pad)
+        self.bn = nn.BatchNorm2d(out_channel)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.bn(x)
+        return x
 
 
 if __name__ == "__main__":

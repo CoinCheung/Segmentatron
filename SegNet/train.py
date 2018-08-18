@@ -13,19 +13,14 @@ import torch
 import os
 import sys
 import logging
-#  import Piclkle as pickle
 import pickle
+import numpy as np
 
-
-'''
-    2. python infer.py example.jpg
-    3. accuracy, classification accuracy, with label 11 ignored (0-11 valid)
-'''
 
 
 def train():
     ## config
-    cfg = load_cfg('./config.json')
+    cfg = load_cfg('./SegNet.json')
 
     ## logging
     FORMAT = '%(levelname)s %(filename)s: %(message)s'
@@ -46,9 +41,8 @@ def train():
                             num_workers = 4,
                             drop_last = True)
 
-    ## network and loss
+    ## network and checkpoint
     segnet = SegNet().float().cuda()
-    segnet = nn.DataParallel(segnet, device_ids = None)
     weight = torch.Tensor([0.2595, 0.1826, 4.5640, 0.1417, 0.9051, 0.3826, 9.6446, 1.8418, 0.6823, 6.2478, 7.3614, 0])  # ignore label 11
     Loss = nn.CrossEntropyLoss(weight = weight).cuda()
 
@@ -70,70 +64,97 @@ def train():
     if os.path.exists(save_name): return
     models = os.listdir(save_path)
     its = [int(os.path.splitext(el)[0].split('_')[2]) for el in models if el[:5] == 'model']
-    it = 0
+    start_it = 0
     if len(its) > 0:
-        it = max(its)
-        model_checkpoint = os.path.join(save_path, ''.join(['model_iter_', str(it), '.pytorch']))
-        optim_checkpoint = model_checkpoint.replace('model', 'optim')
+        start_it = max(its)
+        model_checkpoint = os.path.join(save_path, ''.join(['model_iter_', str(start_it), '.pytorch']))
         logger.info('resume from checkpoint: {}\n'.format(model_checkpoint))
         segnet.load_state_dict(torch.load(model_checkpoint))
+        optim_checkpoint = model_checkpoint.replace('model', 'optim')
         optimizer.load_state_dict(torch.load(optim_checkpoint))
 
+    ## multi-gpu
+    segnet = nn.DataParallel(segnet, device_ids = None)
+
     ## train
-    epoch = int((cfg.train.max_iter - it) // (len(trainset) / cfg.train.batch_size) + 1)
     result = AttrDict({
         'train_loss': [],
         'val_loss': [],
         'cfg': cfg
         })
-    for e in range(epoch):
-        for im, label in trainloader:
-            im = im.cuda().float()
-            label = label.cuda().long().contiguous().view(-1, )
+    trainiter = iter(trainloader)
+    for it in range(start_it, cfg.train.max_iter):
+        try:
+            im, label = next(trainiter)
+        except StopIteration:
+            trainiter = iter(trainloader)
+            im, label = next(trainiter)
 
-            segnet.train()
-            optimizer.zero_grad()
-            logits = segnet(im).permute(0, 2, 3, 1).contiguous().view(-1, 12)
-            loss = Loss(logits, label)
-            loss_value = loss.detach().cpu().numpy()
-            result.train_loss.append(loss_value)
-            loss.backward()
+        im = im.cuda().float()
+        label = label.cuda().long().contiguous().view(-1, )
 
-            scheduler.step()
-            optimizer.step()
+        segnet.train()
+        optimizer.zero_grad()
+        logits = segnet(im).permute(0, 2, 3, 1).contiguous().view(-1, 12)
+        loss = Loss(logits, label)
+        loss_value = loss.detach().cpu().numpy()
+        result.train_loss.append(loss_value)
+        loss.backward()
 
-            it += 1
-            if it % 20 == 0:
-                logger.info('iter: {}/{}, loss: {}'.format(it, cfg.train.max_iter, loss_value))
-            if it % cfg.train.snapshot == 0:
-                save_model_name = os.path.join(save_path, ''.join(['model_iter_', str(it), '.pytorch']))
-                save_optim_name = save_model_name.replace('model', 'optim')
-                logger.info('saving snapshot to: {}'.format(save_path))
-                torch.save(segnet.state_dict(), save_model_name)
-                torch.save(optimizer.state_dict(), save_optim_name)
-            if it == cfg.train.max_iter:
-                logger.info('training done')
-                save_name = os.path.join(save_path, 'model.pytorch')
-                logger.info('saving model to: {}'.format(save_name))
-                torch.save(segnet.state_dict(), save_name)
-                with open('./loss.pkl', 'wb') as fw:
-                    pickle.dump(result, fw)
-                print('everything done')
-                return
-        valid_loss = val_one_epoch(segnet, Loss, valloader)
-        result.val_loss.append(valid_loss)
-        logger.info('epoch {}, validation loss: {}'.format(e, valid_loss))
+        scheduler.step()
+        optimizer.step()
+
+        it += 1
+        if it % 20 == 0:
+            logger.info('iter: {}/{}, loss: {}'.format(it, cfg.train.max_iter, loss_value))
+        if it % cfg.train.valid_iter == 0:
+            valid_loss, acc_clss, acc_all = val_one_epoch(segnet, Loss, valloader)
+            result.val_loss.append(valid_loss)
+            logger.info('validation loss: {}\n accuracy per class: {} \n accuracy all: {}'.format(valid_loss, acc_clss, acc_all))
+        if it % cfg.train.snapshot_iter == 0:
+            save_model_name = os.path.join(save_path, ''.join(['model_iter_', str(it), '.pytorch']))
+            save_optim_name = save_model_name.replace('model', 'optim')
+            logger.info('saving snapshot to: {}'.format(save_path))
+            torch.save(segnet.module.state_dict(), save_model_name)
+            torch.save(optimizer.state_dict(), save_optim_name)
+
+    logger.info('training done')
+    save_name = os.path.join(save_path, 'model.pytorch')
+    logger.info('saving model to: {}'.format(save_name))
+    segnet.cpu()
+    torch.save(segnet.module.state_dict(), save_name)
+    with open(save_path + './result.pkl', 'wb') as fw:
+        pickle.dump(result, fw)
+    print('everything done')
+    return
 
 
 def val_one_epoch(model, Loss, valid_loader):
-    val_loss = []
     model.eval()
+    val_loss = []
+    acc_class_list = []
+    acc_list = []
     for img, label in valid_loader:
         logits = model(img.cuda().float()).permute(0, 2, 3, 1).contiguous().view(-1, 12)
         label = label.cuda().long().contiguous().view(-1, )
         loss = Loss(logits, label)
         val_loss.append(loss.detach().cpu().numpy())
-    return sum(val_loss) / len(val_loss)
+
+        clsses = logits.detach().cpu().numpy().argmax(axis = 1)
+        lbs = label.cpu().numpy().astype(np.int64)
+        acc = np.mean(lbs == clsses)
+        acc_class = []
+        for idx in range(11):
+            indices = np.where(lbs == idx)
+            clss = clsses[indices]
+            acc_class.append(np.mean(clss == idx))
+        acc_class_list.append(acc_class)
+        acc_list.append(np.mean(clsses == lbs))
+    acc_mtx = np.array(acc_class_list)
+    acc_per_class = np.mean(acc_mtx, axis = 0)
+    acc_all = sum(acc_list) / len(acc_list)
+
+    return sum(val_loss) / len(val_loss), acc_per_class, acc_all
 
 
 

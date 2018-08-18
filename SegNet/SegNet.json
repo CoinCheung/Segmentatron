@@ -1,19 +1,24 @@
 {
+"model": 
+    {
+    "backbone":"SegNet"
+    },
 "optimizer": 
     {
     "base_lr": 0.1,
     "momentum": 0.9,
     "lr_policy": "step",
-    "gamma": 0.9,
+    "gamma": 1,
     "stepsize": 10000000,
     "weight_decay": 0.0005
     },
 "train": 
     {
     "datasets": "CamVid",
-    "max_iter": 40000,
+    "max_iter": 10000,
     "batch_size": 4,
-    "snapshot": 10000,
+    "snapshot_iter": 2000,
+    "valid_iter": 200,
     "out_path": "./train" 
     },
 "test": 
