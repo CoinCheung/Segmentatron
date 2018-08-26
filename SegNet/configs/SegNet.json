@@ -1,7 +1,7 @@
 {
 "model": 
     {
-    "backbone":"SegNet"
+    "backbone": "SegNet"
     },
 "optimizer": 
     {
@@ -23,7 +23,7 @@
     },
 "test": 
     {
-    "skip_test": false
+    "skip_test": true
     },
 "val": 
     {

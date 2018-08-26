@@ -19,4 +19,6 @@ def get_datasets(dname, mode):
         return CamVid.get_CamVid_val()
     elif mode == 'test':
         return CamVid.get_CamVid_test()
+    else:
+        raise TypeError('unsupported mode {}'.format(mode))
 

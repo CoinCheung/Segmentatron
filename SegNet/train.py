@@ -5,8 +5,8 @@
 from datasets import get_datasets
 from utils.AttrDict import AttrDict
 from config import load_cfg
-from model import SegNet
 from torch.utils.data import DataLoader
+from models import get_model
 import torch.nn as nn
 import torch
 
@@ -16,8 +16,6 @@ import logging
 import pickle
 import numpy as np
 
-# TODO
-# 1. read me
 
 
 def train(cfg_file):
@@ -44,13 +42,14 @@ def train(cfg_file):
                             drop_last = True)
 
     ## network and checkpoint
-    segnet = SegNet().float().cuda()
+    model = get_model(cfg.model.backbone).float().cuda()
+    print(model)
     weight = torch.Tensor([0.2595, 0.1826, 4.5640, 0.1417, 0.9051, 0.3826, 9.6446, 1.8418, 0.6823, 6.2478, 7.3614, 0])  # ignore label 11
     Loss = nn.CrossEntropyLoss(weight = weight).cuda()
 
     ## optimizer
     optimizer = torch.optim.SGD(
-                    segnet.parameters(),
+                    model.parameters(),
                     lr = cfg.optimizer.base_lr,
                     momentum = cfg.optimizer.momentum,
                     weight_decay = cfg.optimizer.weight_decay)
@@ -64,19 +63,19 @@ def train(cfg_file):
     if not os.path.exists(save_path): os.makedirs(save_path)
     save_name = os.path.join(save_path, 'model.pytorch')
     if os.path.exists(save_name): return
-    models = os.listdir(save_path)
-    its = [int(os.path.splitext(el)[0].split('_')[2]) for el in models if el[:5] == 'model']
+    model_ckpts = os.listdir(save_path)
+    its = [int(os.path.splitext(el)[0].split('_')[2]) for el in model_ckpts if el[:5] == 'model']
     start_it = 0
     if len(its) > 0:
         start_it = max(its)
-        model_checkpoint = os.path.join(save_path, ''.join(['model_iter_', str(start_it), '.pytorch']))
-        logger.info('resume from checkpoint: {}\n'.format(model_checkpoint))
-        segnet.load_state_dict(torch.load(model_checkpoint))
-        optim_checkpoint = model_checkpoint.replace('model', 'optim')
+        model_ckpt = os.path.join(save_path, ''.join(['model_iter_', str(start_it), '.pytorch']))
+        logger.info('resume from checkpoint: {}\n'.format(model_ckpt))
+        model.load_state_dict(torch.load(model_ckpt))
+        optim_checkpoint = model_ckpt.replace('model', 'optim')
         optimizer.load_state_dict(torch.load(optim_checkpoint))
 
     ## multi-gpu
-    segnet = nn.DataParallel(segnet, device_ids = None)
+    model = nn.DataParallel(model, device_ids = None)
 
     ## train
     result = AttrDict({
@@ -88,6 +87,7 @@ def train(cfg_file):
     for it in range(start_it, cfg.train.max_iter):
         try:
             im, label = next(trainiter)
+            if not im.shape[0] == cfg.train.batch_size: continue
         except StopIteration:
             trainiter = iter(trainloader)
             im, label = next(trainiter)
@@ -95,9 +95,9 @@ def train(cfg_file):
         im = im.cuda().float()
         label = label.cuda().long().contiguous().view(-1, )
 
-        segnet.train()
+        model.train()
         optimizer.zero_grad()
-        logits = segnet(im).permute(0, 2, 3, 1).contiguous().view(-1, 12)
+        logits = model(im).permute(0, 2, 3, 1).contiguous().view(-1, 12)
         loss = Loss(logits, label)
         loss_value = loss.detach().cpu().numpy()
         result.train_loss.append(loss_value)
@@ -110,7 +110,7 @@ def train(cfg_file):
         if it % 20 == 0:
             logger.info('iter: {}/{}, loss: {}'.format(it, cfg.train.max_iter, loss_value))
         if it % cfg.train.valid_iter == 0:
-            valid_loss, acc_clss, acc_all = val_one_epoch(segnet, Loss, valloader)
+            valid_loss, acc_clss, acc_all = val_one_epoch(model, Loss, valloader)
             result.val_loss.append(valid_loss)
             print('=======================================')
             logger.info('validation')
@@ -122,18 +122,22 @@ def train(cfg_file):
             save_model_name = os.path.join(save_path, ''.join(['model_iter_', str(it), '.pytorch']))
             save_optim_name = save_model_name.replace('model', 'optim')
             logger.info('saving snapshot to: {}'.format(save_path))
-            torch.save(segnet.module.state_dict(), save_model_name)
+            torch.save(model.module.state_dict(), save_model_name)
             torch.save(optimizer.state_dict(), save_optim_name)
 
     logger.info('training done')
     save_name = os.path.join(save_path, 'model.pytorch')
     logger.info('saving model to: {}'.format(save_name))
-    segnet.cpu()
-    torch.save(segnet.module.state_dict(), save_name)
-    with open(save_path + './result.pkl', 'wb') as fw:
+    model.cpu()
+    torch.save(model.module.state_dict(), save_name)
+    with open(save_path + '/result.pkl', 'wb') as fw:
         pickle.dump(result, fw)
+    while True:
+        try:
+            im, label = next(trainiter)
+        except StopIteration:
+            break
     print('everything done')
-    return
 
 
 def val_one_epoch(model, Loss, valid_loader):

@@ -1,0 +1,35 @@
+{
+"model": 
+    {
+    "backbone": "DeeplabLargeFOV",
+    "in_channel": 3 ,
+    "num_class": 3 
+    },
+"optimizer": 
+    {
+    "base_lr": ,
+    "momentum": ,
+    "lr_policy": "",
+    "gamma": ,
+    "stepsize": ,
+    "weight_decay": 
+    },
+"train": 
+    {
+    "datasets": "",
+    "max_iter": ,
+    "batch_size": 30,
+    "snapshot_iter": ,
+    "valid_iter": ,
+    "out_path": "./train" 
+    },
+"test": 
+    {
+    "skip_test": true
+    },
+"val": 
+    {
+    "datasets": "",
+    "batch_size": 
+    }
+}

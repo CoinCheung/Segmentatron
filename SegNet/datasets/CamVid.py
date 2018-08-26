@@ -70,8 +70,9 @@ if __name__ == '__main__':
         print(type(im))
         print(im.shape)
         label = label * 50
-        cv2.imshow('img', im[0].numpy())
-        cv2.imshow('label', label[0].numpy())
-        cv2.waitKey(0)
+        #  cv2.imshow('img', im[0].numpy())
+        #  cv2.imshow('label', label[0].numpy())
+        #  cv2.waitKey(0)
+    print(len(dataset))
 
 

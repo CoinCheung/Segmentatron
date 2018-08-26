@@ -5,18 +5,15 @@
 import torch
 import torch.nn as nn
 
+from common import ConvBNReLU, ConvBN
+
 # TODO:
-# 0. 各层尤其是conv层怎么初始化的。 -- conv初始化了，BN 好像没法初始化
-# 1. BN 是怎么初始化的
-# 2. 数据是否需要预处理 -- 没有，只有一个LRN，但是没什么用
-# 3. pool是same 还是valid --- 就是 2, 2
 # 4. 训练时不同层的lr_mut不同
-# 5. upsample时候的scale是2，要加吗 -- done，maxunpool已经指明了
-# 6. 是否使用了data aug -- 没有，有LRN，但是没用。
 
 class SegNet(nn.Module):
     def __init__(self, *args, **kwargs):
         super(SegNet, self).__init__(*args, **kwargs)
+        self.norm = nn.LocalResponseNorm(5, alpha = 0.0001, beta = 0.75)
         self.conv1 = ConvBNReLU(3, 64, 7, 1, 3)
         self.pool1 = nn.MaxPool2d(2, 2, return_indices=True)
 
@@ -47,6 +44,8 @@ class SegNet(nn.Module):
 
 
     def forward(self, x):
+        ## It turns out that the model behaves better without this LRN layer
+        #  x = self.norm(x)
         x = self.conv1(x)
         size1 = x.size()
         x, idx1 = self.pool1(x)
@@ -80,45 +79,15 @@ class SegNet(nn.Module):
                     nn.init.constant_(param, 0)
 
 
-
-class ConvBNReLU(nn.Module):
-    def __init__(self, in_channel, out_channel, kernel, stride, pad,
-            *args, **kwargs):
-        super(ConvBNReLU, self).__init__(*args, **kwargs)
-        self.conv = nn.Conv2d(in_channel, out_channel, kernel, stride, pad)
-        self.bn = nn.BatchNorm2d(out_channel)
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        x = self.relu(x)
-        return x
-
-
-class ConvBN(nn.Module):
-    def __init__(self, in_channel, out_channel, kernel, stride, pad,
-            *args, **kwargs):
-        super(ConvBN, self).__init__(*args, **kwargs)
-        self.conv = nn.Conv2d(in_channel, out_channel, kernel, stride, pad)
-        self.bn = nn.BatchNorm2d(out_channel)
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        return x
-
-
 if __name__ == "__main__":
     segnet = SegNet().cuda()
     segnet.float()
     import numpy as np
     in_array = np.random.randn(4, 3, 360, 480)
-    in_tensor = torch.as_tensor(in_array, dtype=torch.float32).cuda()
+    in_tensor = torch.tensor(in_array, dtype=torch.float32).cuda()
     in_tensor.float()
     print(type(in_tensor))
     print(in_tensor.dtype)
     segnet.train()
     out_tensor = segnet(in_tensor)
     print(out_tensor.data)
-
