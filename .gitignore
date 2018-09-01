@@ -102,3 +102,15 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+*.pytorch
+/train/
+*pyc
+/datasets/CamVid/see.py
+/datasets/CamVid/deal_txt.py
+try.py
+*pkl
+*pytorch
+/example.jpg
+/clear.sh
+/datasets/VOCtrainval_11-May-2012.tar
+/datasets/VOCdevkit
