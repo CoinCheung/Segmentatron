@@ -44,8 +44,12 @@ def train(cfg_file):
     ## network and checkpoint
     model = get_model(cfg.model.backbone).float().cuda()
     print(model)
-    weight = torch.Tensor([0.2595, 0.1826, 4.5640, 0.1417, 0.9051, 0.3826, 9.6446, 1.8418, 0.6823, 6.2478, 7.3614, 0])  # ignore label 11
+    if cfg.model.class_weight is not None:
+        weight = torch.Tensor(cfg.model.class_weight)  # ignore some labels or set weight
+    else:
+        weight = None
     Loss = nn.CrossEntropyLoss(weight = weight).cuda()
+
 
     ## optimizer
     optimizer = torch.optim.SGD(
@@ -53,10 +57,11 @@ def train(cfg_file):
                     lr = cfg.optimizer.base_lr,
                     momentum = cfg.optimizer.momentum,
                     weight_decay = cfg.optimizer.weight_decay)
-    scheduler = torch.optim.lr_scheduler.StepLR(
-                    optimizer,
-                    step_size = cfg.optimizer.stepsize,
-                    gamma = cfg.optimizer.gamma)
+    if cfg.optimizer.lr_policy == 'step':
+        scheduler = torch.optim.lr_scheduler.StepLR(
+                        optimizer,
+                        step_size = cfg.optimizer.stepsize,
+                        gamma = cfg.optimizer.gamma)
 
     ## checkpoint
     save_path = cfg.train.out_path
@@ -103,8 +108,9 @@ def train(cfg_file):
         result.train_loss.append(loss_value)
         loss.backward()
 
-        scheduler.step()
         optimizer.step()
+        if cfg.optimizer.lr_policy == 'step':
+            scheduler.step()
 
         it += 1
         if it % 20 == 0:

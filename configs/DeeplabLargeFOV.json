@@ -2,25 +2,26 @@
 "model": 
     {
     "backbone": "DeeplabLargeFOV",
-    "in_channel": 3 ,
-    "num_class": 3 
+    "in_channel": 3,
+    "num_class": 22,
+    "class_weight": null
     },
 "optimizer": 
     {
-    "base_lr": ,
-    "momentum": ,
-    "lr_policy": "",
-    "gamma": ,
-    "stepsize": ,
-    "weight_decay": 
+    "base_lr": 1e-3,
+    "momentum": 0.9,
+    "lr_policy": "step",
+    "gamma": 0.1,
+    "stepsize": 2000,
+    "weight_decay": 5e-4
     },
 "train": 
     {
-    "datasets": "",
-    "max_iter": ,
+    "datasets": "PascalVoc2012",
+    "max_iter": 8000,
     "batch_size": 30,
-    "snapshot_iter": ,
-    "valid_iter": ,
+    "snapshot_iter": 2000,
+    "valid_iter": 2000,
     "out_path": "./train" 
     },
 "test": 
@@ -31,5 +32,6 @@
     {
     "datasets": "",
     "batch_size": 
-    }
+    },
+"out_pth": "./train/" 
 }

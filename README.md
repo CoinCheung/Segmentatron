@@ -2,7 +2,7 @@ My implementation of some segmentations algorithms. The program relies on python
 
 1. Train SegNet
 In order to train a SegNet, run:  
-```python
+```shell
     $ python3 train_net.py --cfg SegNet.json
 ```
 

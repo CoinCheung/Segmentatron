@@ -12,8 +12,9 @@ class CamVid(Dataset):
     '''
     a wrapper of CamVid dataset.
     '''
-    def __init__(self, data_path, mode='train'):
+    def __init__(self, data_path, mode='train', *args, **kwargs):
         super(CamVid, self).__init__()
+        self.mode = mode
         if mode == 'train':
             fns_path = data_path + '/train.txt'
             with open(fns_path, 'r') as fr:
@@ -33,7 +34,7 @@ class CamVid(Dataset):
                 self.imgs = [''.join([data_path, '/test/', el]) for el in self.fns]
                 self.labels = [''.join([data_path, '/testannot/', el]) for el in self.fns]
         else:
-            assert False, 'unknow mode: {}'.format(mode)
+            raise ValueError('unrecognized mode for CamVid: {}'.format(self.mode))
 
 
     def __len__(self):
@@ -47,17 +48,6 @@ class CamVid(Dataset):
         #  label = label.transpose(2, 0, 1)
         return img, label
 
-
-def get_CamVid_train():
-    return CamVid('datasets/CamVid/', 'train')
-
-
-def get_CamVid_val():
-    return CamVid('datasets/CamVid/', 'val')
-
-
-def get_CamVid_test():
-    return CamVid('datasets/CamVid/', 'test')
 
 
 if __name__ == '__main__':
