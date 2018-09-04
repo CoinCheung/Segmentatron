@@ -26,7 +26,7 @@ Notes:
 
 class DeepLabLargeFOV(nn.Module):
     def __init__(self, in_channel, out_num, *args, **kwargs):
-        super(DeepLabLargeFOV, self).__init__(*args, *kwargs)
+        super(DeepLabLargeFOV, self).__init__(*args, **kwargs)
         self.conv1_1 = ConvReLU(in_channel, 64, kernel = 3, stride = 1, pad = 1)
         self.conv1_2 = ConvReLU(64, 64, kernel = 3, stride = 1, pad = 1)
         self.pool1 = nn.MaxPool2d(3, stride = 2, padding = 1)

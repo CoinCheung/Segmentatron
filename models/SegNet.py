@@ -8,6 +8,7 @@ import torch.nn as nn
 from common import ConvBNReLU, ConvBN
 
 # TODO:
+# 1. add parameters of input channel number and out number
 # 4. 训练时不同层的lr_mut不同
 
 class SegNet(nn.Module):
