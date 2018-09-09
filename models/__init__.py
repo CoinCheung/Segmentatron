@@ -15,9 +15,11 @@ factory = {
         }
 
 
-def get_model(model_name, *args, **kwargs):
-    if model_name in factory.keys():
-        return factory[model_name](*args, **kwargs)
+def get_model(cfg):
+    model = cfg.model
+    if model.backbone in factory.keys():
+        return factory[model.backbone](in_dim = model.in_channel,
+                out_dim = model.num_class)
     else:
         raise NameError("unsupported model type {}".format(model_name))
 

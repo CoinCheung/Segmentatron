@@ -12,10 +12,13 @@ from common import ConvBNReLU, ConvBN
 # 4. 训练时不同层的lr_mut不同
 
 class SegNet(nn.Module):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, in_dim, out_dim, *args, **kwargs):
         super(SegNet, self).__init__(*args, **kwargs)
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+
         self.norm = nn.LocalResponseNorm(5, alpha = 0.0001, beta = 0.75)
-        self.conv1 = ConvBNReLU(3, 64, 7, 1, 3)
+        self.conv1 = ConvBNReLU(in_dim, 64, 7, 1, 3)
         self.pool1 = nn.MaxPool2d(2, 2, return_indices=True)
 
         self.conv2 = ConvBNReLU(64, 64, 7, 1, 3)
@@ -39,7 +42,7 @@ class SegNet(nn.Module):
         self.upsample1 = nn.MaxUnpool2d(2, 2)
         self.deconv1 = ConvBN(64, 64, 7, 1, 3)
 
-        self.classifier = nn.Conv2d(64, 12, 1, 1)
+        self.classifier = nn.Conv2d(64, out_dim, 1, 1)
 
         self.init_params()
 

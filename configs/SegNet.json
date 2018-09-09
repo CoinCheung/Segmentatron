@@ -18,6 +18,7 @@
 "train": 
     {
     "datasets": "CamVid",
+    "im_size": [480, 360],
     "max_iter": 10000,
     "batch_size": 4,
     "snapshot_iter": 2000,
@@ -31,7 +32,8 @@
 "val": 
     {
     "datasets": "CamVid",
+    "im_size": [480, 360],
     "batch_size": 32
     },
-"out_pth": "./train/" 
+"out_pth": "./trainSegNet/" 
 }

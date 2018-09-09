@@ -7,15 +7,32 @@ from utils.AttrDict import AttrDict
 from config import load_cfg
 from torch.utils.data import DataLoader
 from models import get_model
+
 import torch.nn as nn
 import torch
-
 import os
 import sys
 import logging
 import pickle
 import numpy as np
+import cv2
 
+
+## TODO:
+# 1. image_siza  -- done
+# 2. optimizer class encapsuling optimizer and scheduler
+# 3. encapsule load checkpoint and model to a method
+
+
+
+def resize_label(label, size):
+    if label.shape[-2] == size[0] and label.shape[-1] == size[1]:
+        return label
+    size = (label.shape[0], size[0], size[1])
+    new_label = np.empty(size, dtype = np.int32)
+    for i, lb in enumerate(label.numpy()):
+        new_label[i, ...] = cv2.resize(lb, size[1:], interpolation = cv2.INTER_NEAREST)
+    return torch.from_numpy(new_label).long()
 
 
 def train(cfg_file):
@@ -42,7 +59,7 @@ def train(cfg_file):
                             drop_last = True)
 
     ## network and checkpoint
-    model = get_model(cfg.model.backbone).float().cuda()
+    model = get_model(cfg).float().cuda()
     print(model)
     if cfg.model.class_weight is not None:
         weight = torch.Tensor(cfg.model.class_weight)  # ignore some labels or set weight
@@ -90,6 +107,8 @@ def train(cfg_file):
         })
     trainiter = iter(trainloader)
     for it in range(start_it, cfg.train.max_iter):
+        model.train()
+        optimizer.zero_grad()
         try:
             im, label = next(trainiter)
             if not im.shape[0] == cfg.train.batch_size: continue
@@ -98,11 +117,11 @@ def train(cfg_file):
             im, label = next(trainiter)
 
         im = im.cuda().float()
+        num_class = cfg.model.num_class
+        logits = model(im)
+        label = resize_label(label, logits.shape[2:])
         label = label.cuda().long().contiguous().view(-1, )
-
-        model.train()
-        optimizer.zero_grad()
-        logits = model(im).permute(0, 2, 3, 1).contiguous().view(-1, 12)
+        logits = logits.permute(0, 2, 3, 1).contiguous().view(-1, num_class)
         loss = Loss(logits, label)
         loss_value = loss.detach().cpu().numpy()
         result.train_loss.append(loss_value)
@@ -112,18 +131,12 @@ def train(cfg_file):
         if cfg.optimizer.lr_policy == 'step':
             scheduler.step()
 
-        it += 1
+        if it == 0: continue
         if it % 20 == 0:
             logger.info('iter: {}/{}, loss: {}'.format(it, cfg.train.max_iter, loss_value))
-        if it % cfg.train.valid_iter == 0:
-            valid_loss, acc_clss, acc_all = val_one_epoch(model, Loss, valloader)
+        if it % cfg.val.valid_iter == 0:
+            valid_loss, acc_clss, acc_all = val_one_epoch(model, Loss, valloader, cfg)
             result.val_loss.append(valid_loss)
-            print('=======================================')
-            logger.info('validation')
-            print('accuracy per class:\n {}'.format(acc_clss.reshape(-1, 1)))
-            print('accuracy all: {}'.format(acc_all))
-            print('loss: {}'.format(valid_loss))
-            print('=======================================')
         if it % cfg.train.snapshot_iter == 0:
             save_model_name = os.path.join(save_path, ''.join(['model_iter_', str(it), '.pytorch']))
             save_optim_name = save_model_name.replace('model', 'optim')
@@ -146,32 +159,39 @@ def train(cfg_file):
     print('everything done')
 
 
-def val_one_epoch(model, Loss, valid_loader):
+def val_one_epoch(model, Loss, valid_loader, cfg):
     model.eval()
     val_loss = []
-    acc_class_list = []
-    acc_list = []
+    acc_list_list = []
+    acc_list = [[] for i in range(cfg.model.num_class)]
     for img, label in valid_loader:
-        logits = model(img.cuda().float()).permute(0, 2, 3, 1).contiguous().view(-1, 12)
+        logits = model(img.cuda().float())
+        label = resize_label(label, logits.shape[2:])
+        logits = logits.permute(0, 2, 3, 1).contiguous().view(-1, cfg.model.num_class)
         label = label.cuda().long().contiguous().view(-1, )
         loss = Loss(logits, label)
         val_loss.append(loss.detach().cpu().numpy())
 
         clsses = logits.detach().cpu().numpy().argmax(axis = 1)
         lbs = label.cpu().numpy().astype(np.int64)
-        acc = np.mean(lbs == clsses)
-        acc_class = []
-        for idx in range(11):
+        for idx in range(cfg.model.num_class - 1):
             indices = np.where(lbs == idx)
             clss = clsses[indices]
-            acc_class.append(np.mean(clss == idx))
-        acc_class_list.append(acc_class)
-        acc_list.append(np.mean(clsses == lbs))
-    acc_mtx = np.array(acc_class_list)
-    acc_per_class = np.mean(acc_mtx, axis = 0)
-    acc_all = sum(acc_list) / len(acc_list)
+            acc_list[idx].extend(list(clss == idx))
+    valid_loss = sum(val_loss) / len(val_loss)
+    acc_per_class = np.array([sum(el) / len(el) if not len(el) == 0 else None for el in acc_list])
+    acc_list_all = []
+    [acc_list_all.extend(el) for el in acc_list]
+    acc_all = sum(acc_list_all) / len(acc_list_all)
 
-    return sum(val_loss) / len(val_loss), acc_per_class, acc_all
+    print('=======================================')
+    print('result on validation set:')
+    print('accuracy per class:\n {}'.format(acc_per_class.reshape(-1, 1)))
+    print('accuracy all: {}'.format(acc_all))
+    print('validation loss: {}'.format(valid_loss))
+    print('=======================================')
+
+    return valid_loss, acc_per_class, acc_all
 
 
 

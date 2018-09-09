@@ -9,7 +9,7 @@ import torch.nn as nn
 
 
 ## TODO:
-# 1. minus sample means
+# 1. minus sample means -- done in pascalvoc.py
 # 2. different lrs for different parameters
 
 '''
@@ -25,9 +25,12 @@ Notes:
 
 
 class DeepLabLargeFOV(nn.Module):
-    def __init__(self, in_channel, out_num, *args, **kwargs):
+    def __init__(self, in_dim, out_dim, *args, **kwargs):
         super(DeepLabLargeFOV, self).__init__(*args, **kwargs)
-        self.conv1_1 = ConvReLU(in_channel, 64, kernel = 3, stride = 1, pad = 1)
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+
+        self.conv1_1 = ConvReLU(in_dim, 64, kernel = 3, stride = 1, pad = 1)
         self.conv1_2 = ConvReLU(64, 64, kernel = 3, stride = 1, pad = 1)
         self.pool1 = nn.MaxPool2d(3, stride = 2, padding = 1)
         self.conv2_1 = ConvReLU(64, 128, kernel = 3, stride = 1, pad = 1)
@@ -50,7 +53,7 @@ class DeepLabLargeFOV(nn.Module):
         self.drop6 = nn.Dropout(p = 0.5)
         self.fc7 = ConvReLU(1024, 1024, kernel = 1, stride = 1, pad = 0)
         self.drop7 = nn.Dropout(p = 0.5)
-        self.fc8 = nn.Conv2d(1024, out_num, kernel_size = 1)
+        self.fc8 = nn.Conv2d(1024, out_dim, kernel_size = 1)
 
         self.init_params()
 
@@ -97,6 +100,7 @@ class DeepLabLargeFOV(nn.Module):
 
         nn.init.normal_(self.fc8.weight, 0, 0.01)
         nn.init.constant_(self.fc8.bias, 0)
+
 
 
 if __name__ == '__main__':

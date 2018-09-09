@@ -4,11 +4,14 @@
 
 
 import torch
+import torchvision
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import numpy as np
+import random
 import cv2
 import os
+
 
 '''
 Pascal VOC Segmentation consists of 20 classes. The label array can be created py PIL.Image:
@@ -46,15 +49,25 @@ class PascalVOC(Dataset):
         img_pth = os.path.join(self.jpg_pth, img_name + '.jpg')
         lb_pth = os.path.join(self.label_pth, img_name + '.png')
         img = cv2.imread(img_pth)
+        img = cv2.resize(img, (321, 321)).astype(np.float)
+        img[:, :, 0] -= 104.008
+        img[:, :, 1] -= 122.675
+        img[:, :, 2] -= 116.669
+        flip_p = random.uniform(0, 1)
+        if flip_p > 0.5:
+            img = np.fliplr(img).copy()
+        img = img.transpose(2, 0, 1)
         label = np.array(Image.open(lb_pth))
         label[label==255] = 21 # set the boundary to be category 21 (ignored label)
+        label = cv2.resize(label, (321, 321),
+                interpolation = cv2.INTER_NEAREST).astype(np.float)
         return img, label
 
 
 
 if __name__ == '__main__':
-    ds = PascalVOC(root_pth = './VOCdevkit/VOC2012/', mode = 'val')
-    dl = DataLoader(ds, batch_size = 4, shuffle = True, num_workers = 4)
+    ds = PascalVOC(root_pth = './VOCdevkit/VOC2012/', mode = 'train')
+    dl = DataLoader(ds, batch_size = 4, shuffle = True, num_workers = 1)
     im, lb = ds[14]
     print(im.shape)
     print(lb.shape)
@@ -62,6 +75,12 @@ if __name__ == '__main__':
     #  cv2.imshow('img', im)
     #  cv2.imshow('lb', lb)
     #  cv2.waitKey(0)
-    for im, lb in ds:
-        pass
+    #  for im, lb in ds:
+    #      print(im[0, 0, 1])
+    #      pass
+    trainiter = iter(dl)
+    im, label = next(trainiter)
+    #  for i in range(200):
+    #      im, label = next(trainiter)
+
 

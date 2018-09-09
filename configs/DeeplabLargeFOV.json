@@ -18,10 +18,10 @@
 "train": 
     {
     "datasets": "PascalVoc2012",
+    "im_size": [321, 321],
     "max_iter": 8000,
     "batch_size": 30,
     "snapshot_iter": 2000,
-    "valid_iter": 2000,
     "out_path": "./train" 
     },
 "test": 
@@ -30,8 +30,10 @@
     },
 "val": 
     {
-    "datasets": "",
-    "batch_size": 
+    "valid_iter": 2000,
+    "im_size": [321, 321],
+    "datasets": "PascalVoc2012",
+    "batch_size": 30 
     },
 "out_pth": "./train/" 
 }
