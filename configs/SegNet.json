@@ -22,7 +22,6 @@
     "max_iter": 10000,
     "batch_size": 4,
     "snapshot_iter": 2000,
-    "valid_iter": 500,
     "out_path": "./train" 
     },
 "test": 
@@ -31,9 +30,10 @@
     },
 "val": 
     {
+    "valid_iter": 500,
     "datasets": "CamVid",
     "im_size": [480, 360],
     "batch_size": 32
     },
-"out_pth": "./trainSegNet/" 
+"out_path": "./trainSegNet/" 
 }

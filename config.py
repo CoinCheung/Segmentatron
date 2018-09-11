@@ -19,5 +19,6 @@ def load_cfg(jfile):
     cfg.train = AttrDict(jobj['train'])
     cfg.test = AttrDict(jobj['test'])
     cfg.val = AttrDict(jobj['val'])
+    cfg.out_path = jobj['out_path']
 
     return cfg
