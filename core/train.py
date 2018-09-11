@@ -4,10 +4,10 @@
 
 from datasets import get_datasets
 from utils.AttrDict import AttrDict
-from config import load_cfg
+from core.config import load_cfg
 from torch.utils.data import DataLoader
 from models import get_model
-from optimizer import Optimizer
+from core.optimizer import Optimizer
 
 import torch.nn as nn
 import torch
@@ -25,7 +25,7 @@ import cv2
 # 3. encapsule load checkpoint and model to a method
 # 4. scheduler checkpoint -- done
 # 5. deeplab lfov metric all 0
-# 6. use core/ to collect other files
+# 6. use core/ to collect other files -- done
 
 
 
@@ -37,6 +37,9 @@ def resize_label(label, size):
     for i, lb in enumerate(label.numpy()):
         new_label[i, ...] = cv2.resize(lb, size[1:], interpolation = cv2.INTER_NEAREST)
     return torch.from_numpy(new_label).long()
+
+def load_ckpt(cfg):
+    pass
 
 
 def train(cfg_file):
@@ -65,6 +68,7 @@ def train(cfg_file):
     ## network and checkpoint
     model = get_model(cfg).float().cuda()
     print(model)
+    weight = None
     if cfg.model.class_weight is not None:
         weight = torch.Tensor(cfg.model.class_weight)  # ignore some labels or set weight
     Loss = nn.CrossEntropyLoss(weight = weight).cuda()

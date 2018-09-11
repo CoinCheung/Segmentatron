@@ -30,26 +30,30 @@ class Optimizer(object):
                             step_size = self.cfg.optimizer.stepsize,
                             gamma = self.cfg.optimizer.gamma)
 
+
     def step(self):
         self.optimizer.step()
         if self.use_scheduler:
             self.scheduler.step()
 
+
     def zero_grad(self):
         self.optimizer.zero_grad()
+
 
     def load_checkpoint(self, save_path, iter_num = None):
         if self.use_scheduler and iter_num is None:
             raise NameError('Need assign iter number')
         optim_name = ''.join(['optim_iter_', str(iter_num)])
-        schdlr_name = optim_name.replace('optim', 'scheduler')
         optim_path = os.path.join(save_path, optim_name)
-        schdlr_path = os.path.join(save_path, schdlr_name)
         logger.info('loading optimizer state dict')
         self.optimizer.load_state_dict(torch.load(optim_path))
         if self.use_scheduler:
+            schdlr_name = optim_name.replace('optim', 'scheduler')
+            schdlr_path = os.path.join(save_path, schdlr_name)
             logger.info('loading scheduler state dict')
             self.scheduler.load_state_dict(torch.load(schdlr_path))
+
 
     def save_checkpoint(self, save_path, iter_num = None):
         if iter_num is not None:
@@ -58,7 +62,9 @@ class Optimizer(object):
         else:
             raise NameError('Snapshot iter number should be assigned ')
         optim_path = os.path.join(save_path, optim_name)
+        logger.info('saving optimizer state dict')
         torch.save(self.optimizer.state_dict(), optim_path)
         if self.use_scheduler:
             schdlr_path = os.path.join(save_path, schdlr_name)
+            logger.info('saving scheduler state dict')
             torch.save(self.scheduler.state_dict(), schdlr_path)

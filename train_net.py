@@ -3,7 +3,7 @@
 
 
 import argparse
-from train import train
+from core.train import train
 
 
 def main():

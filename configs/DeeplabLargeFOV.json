@@ -30,10 +30,10 @@
     },
 "val": 
     {
-    "valid_iter": 2000,
+    "valid_iter": 40,
     "im_size": [321, 321],
     "datasets": "PascalVoc2012",
     "batch_size": 30 
     },
-"out_pth": "./train/" 
+"out_path": "./train_deeplab_lfov/" 
 }
