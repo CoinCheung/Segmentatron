@@ -28,6 +28,7 @@ import cv2
 # 6. use core/ to collect other files -- done
 
 
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 def resize_label(label, size):
     if label.shape[-2] == size[0] and label.shape[-1] == size[1]:
@@ -37,9 +38,6 @@ def resize_label(label, size):
     for i, lb in enumerate(label.numpy()):
         new_label[i, ...] = cv2.resize(lb, size[1:], interpolation = cv2.INTER_NEAREST)
     return torch.from_numpy(new_label).long()
-
-def load_ckpt(cfg):
-    pass
 
 
 def train(cfg_file):
@@ -145,11 +143,6 @@ def train(cfg_file):
     torch.save(model.module.state_dict(), save_name)
     with open(save_path + '/result.pkl', 'wb') as fw:
         pickle.dump(result, fw)
-    while True:
-        try:
-            im, label = next(trainiter)
-        except StopIteration:
-            break
     print('everything done')
 
 
@@ -165,6 +158,33 @@ def val_one_epoch(model, Loss, valid_loader, cfg):
         label = label.cuda().long().contiguous().view(-1, )
         loss = Loss(logits, label)
         val_loss.append(loss.detach().cpu().numpy())
+
+        ######
+        print(logits.shape)
+        print(logits[:4])
+        label = label.contiguous().view(4, 21, 21)
+        print(label.dtype)
+        print(label.shape)
+        lb = label[0].detach().cpu().numpy().astype(np.uint8)
+        print(lb.dtype)
+        print(lb.shape)
+        lb = lb * 10
+        clsses = logits.detach().cpu().argmax(1)
+        print(clsses.shape)
+        print(clsses.max())
+        print(clsses.min())
+        classes = clsses.contiguous().view(4, 21, 21) * 10
+        classes = resize_label(classes, (321, 321))
+        classes =classes[0].detach().cpu().numpy().astype(np.uint8)
+        print(lb.dtype)
+        print(lb.shape)
+        print(np.max(classes))
+        print(np.min(classes))
+        import cv2
+        cv2.imshow('logits', classes)
+        cv2.imshow('lb', lb)
+        cv2.waitKey(0)
+        ######
 
         clsses = logits.detach().cpu().numpy().argmax(axis = 1)
         lbs = label.cpu().numpy().astype(np.int64)
